@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circular Schedule</title>
+    <!-- Load React -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- Load Babel for JSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Roboto font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'roboto': ['Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const CircularSchedule = () => {
+            // constants
+            const CENTER_X = 400;
+            const CENTER_Y = 400;
+            const RADIUS_OUTER = 300;
+            const DESIRED_GAP = 5;
+            const TEXT_Y_OFFSET = 275;
+
+            // function to convert angle to SVG coordinates
+            const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+                const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+                return {
+                    x: centerX + (radius * Math.cos(angleInRadians)),
+                    y: centerY + (radius * Math.sin(angleInRadians))
+                };
+            };
+
+            // function to calculate angular gap based on radius
+            const calculateGap = (radius) => {
+                return (DESIRED_GAP / radius) * (180 / Math.PI);
+            };
+
+            // function to create arc path with consistent visual gaps
+            const createArcPath = (startAngle, endAngle, innerRadius, outerRadius) => {
+                const avgRadius = (innerRadius + outerRadius) / 2;
+                const gapAngle = calculateGap(avgRadius);
+                const adjustedStart = startAngle + gapAngle / 2;
+                const adjustedEnd = endAngle - gapAngle / 2;
+
+                const start_outer = polarToCartesian(CENTER_X, CENTER_Y, outerRadius, adjustedEnd);
+                const end_outer = polarToCartesian(CENTER_X, CENTER_Y, outerRadius, adjustedStart);
+                const start_inner = polarToCartesian(CENTER_X, CENTER_Y, innerRadius, adjustedEnd);
+                const end_inner = polarToCartesian(CENTER_X, CENTER_Y, innerRadius, adjustedStart);
+
+                const largeArcFlag = adjustedEnd - adjustedStart <= 180 ? "0" : "1";
+
+                return [
+                    "M", start_outer.x, start_outer.y,
+                    "A", outerRadius, outerRadius, 0, largeArcFlag, 0, end_outer.x, end_outer.y,
+                    "L", end_inner.x, end_inner.y,
+                    "A", innerRadius, innerRadius, 0, largeArcFlag, 1, start_inner.x, start_inner.y,
+                    "Z"
+                ].join(" ");
+            };
+
+            const scheduleSegments = [
+                {
+                    day: "Weekdays",
+                    segments: [
+                        { type: "Normal Hours", start: 120, end: 270, radius: [240, 300], color: "#FCAE1E" },
+                        { type: "Item 588", start: 105, end: 120, radius: [240, 300], color: "#F38800" },
+                        { type: "Item 588", start: 270, end: 345, radius: [240, 300], color: "#F38800" },
+                        { type: "Item 600", start: 345, end: 465, radius: [240, 300], color: "#A1AEB1" }
+                    ]
+                },
+                {
+                    day: "Saturdays",
+                    segments: [
+                        { type: "Normal Hours", start: 120, end: 180, radius: [160, 220], color: "#FCAE1E" },
+                        { type: "Item 588", start: 105, end: 120, radius: [160, 220], color: "#F38800" },
+                        { type: "Item 588", start: 180, end: 345, radius: [160, 220], color: "#F38800" },
+                        { type: "Item 600", start: 345, end: 465, radius: [160, 220], color: "#A1AEB1" }
+                    ]
+                },
+                {
+                    day: ["Sundays &", "Public Holidays"],
+                    segments: [
+                        { type: "Item 588", start: 105, end: 345, radius: [80, 140], color: "#F38800" },
+                        { type: "Item 600", start: 345, end: 465, radius: [80, 140], color: "#A1AEB1" }
+                    ]
+                }
+            ];
+
+            const timeLabels = [
+                { angle: 0, text: "12:00am" },
+                { angle: 105, text: "7:00am" },
+                { angle: 120, text: "8:00am" },
+                { angle: 180, text: "12:00pm" },
+                { angle: 270, text: "6:00pm" },
+                { angle: 345, text: "11:00pm" }
+            ];
+
+            return (
+                <div className="w-full max-w-4xl mx-auto font-roboto p-4">
+                    <svg viewBox="0 0 800 800" className="w-full">
+                        {scheduleSegments.map((daySchedule, dayIndex) => (
+                            <g key={dayIndex}>
+                                {daySchedule.segments.map((segment, segIndex) => (
+                                    <path
+                                        key={`${dayIndex}-${segIndex}`}
+                                        d={createArcPath(segment.start, segment.end, segment.radius[0], segment.radius[1])}
+                                        fill={segment.color}
+                                        stroke="black"
+                                        strokeWidth="1"
+                                    />
+                                ))}
+                                {Array.isArray(daySchedule.day) ? (
+                                    daySchedule.day.map((line, lineIndex) => (
+                                        <text
+                                            key={lineIndex}
+                                            x={CENTER_X}
+                                            y={CENTER_Y + TEXT_Y_OFFSET - dayIndex * 84 + lineIndex * 20}
+                                            textAnchor="middle"
+                                            className="text-lg font-roboto font-medium"
+                                        >
+                                            {line}
+                                        </text>
+                                    ))
+                                ) : (
+                                    <text
+                                        x={CENTER_X}
+                                        y={CENTER_Y + TEXT_Y_OFFSET - dayIndex * 82}
+                                        textAnchor="middle"
+                                        className="text-lg font-roboto font-medium"
+                                    >
+                                        {daySchedule.day}
+                                    </text>
+                                )}
+                                {Array.isArray(daySchedule.day) ? (
+                                    daySchedule.day.map((line, lineIndex) => (
+                                        <text
+                                            key={lineIndex}
+                                            x={CENTER_X}
+                                            y={CENTER_Y - TEXT_Y_OFFSET + dayIndex * 82 + lineIndex * 20}
+                                            textAnchor="middle"
+                                            className="text-lg font-roboto font-medium"
+                                        >
+                                            {line}
+                                        </text>
+                                    ))
+                                ) : (
+                                    <text
+                                        x={CENTER_X}
+                                        y={CENTER_Y - TEXT_Y_OFFSET + dayIndex * 82}
+                                        textAnchor="middle"
+                                        className="text-lg font-roboto font-medium"
+                                    >
+                                        {daySchedule.day}
+                                    </text>
+                                )}
+                            </g>
+                        ))}
+
+                        {timeLabels.map((label, index) => {
+                            const position = polarToCartesian(CENTER_X, CENTER_Y, RADIUS_OUTER + 32, label.angle);
+                            return (
+                                <text
+                                    key={index}
+                                    x={position.x}
+                                    y={position.y}
+                                    textAnchor="middle"
+                                    className="text-lg font-roboto"
+                                >
+                                    {label.text}
+                                </text>
+                            );
+                        })}
+
+                        <g transform="translate(650, 100)">
+                            <rect x="0" y="0" width="20" height="20" fill="#FCAE1E" />
+                            <text x="30" y="15" className="text-lg font-roboto">Normal Hours</text>
+
+                            <rect x="0" y="30" width="20" height="20" fill="#F38800" />
+                            <text x="30" y="45" className="text-lg font-roboto">Item 588 & 591</text>
+
+                            <rect x="0" y="60" width="20" height="20" fill="#A1AEB1" />
+                            <text x="30" y="75" className="text-lg font-roboto">Item 600</text>
+                        </g>
+                    </svg>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CircularSchedule />);
+    </script>
+</body>
+</html>
